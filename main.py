@@ -26,7 +26,7 @@ TEMP_DIR = 'temp'
 DOWNLOAD_DIR = 'download'
 
 DL_ERROR_FILELINKTIMEOUT = '下载链接已超时，请重新从文件夹获取。'
-SPLIT_CNT = 4
+SPLIT_CNT = 8
 DOWNLOAD_CNT = 5
 
 g_sem = threading.Semaphore(DOWNLOAD_CNT)
@@ -44,8 +44,9 @@ def requests_debug(r, prefix=''):
 
 
 class CtFile():
-    def __init__(self, url, args, filename='', fid=0, parent_dir=DOWNLOAD_DIR, session=None):
+    def __init__(self, url, pwd, args, filename='', fid=0, parent_dir=DOWNLOAD_DIR, session=None):
         self.url = url
+        self.pwd = pwd
         self.args = args
         self.fid = fid
         self.parent_dir = parent_dir
@@ -64,8 +65,10 @@ class CtFile():
 
         # parameters
         params = {
+            'path':'f',
             'f': self.url.split('/')[-1],
-            'passcode': '',
+            'passcode': self.pwd,
+            'token':0,
             'r': str(random.random()),
             'ref': '',
         }
@@ -82,14 +85,14 @@ class CtFile():
             return False, j.get('message')
 
         if not self.filename:
-            self.filename = j['file_name']
+            self.filename = j['file']['file_name']
 
         # step 2
         params = {
-            'uid': j['userid'],
-            'fid': j['file_id'],
+            'uid': j['file']['userid'],
+            'fid': j['file']['file_id'],
             'folder_id': 0,
-            'file_chk': j['file_chk'],
+            'file_chk': j['file']['file_chk'],
             'mb': 0,
             'app': 0,
             'acheck': 1,
@@ -407,6 +410,7 @@ def main():
     global g_sem
     parser = argparse.ArgumentParser(description='Download from CTDisk.')
     parser.add_argument('-d', '--dir', help='download a directory')
+    parser.add_argument('-p', '--pwd', default='', help='add a password')
     parser.add_argument('-f', '--file', help='download a file')
     parser.add_argument('-s', '--split', type=int, default=SPLIT_CNT, help='split a files to parts')
     parser.add_argument('-c', '--dl_cnt', type=int, default=DOWNLOAD_CNT, help='download files concorrent')
@@ -430,7 +434,7 @@ def main():
                 stop = True
                 log.info('download finished')
     elif args.file:
-        ct_file = CtFile(args.file, args)
+        ct_file = CtFile(args.file, args.pwd, args)
         ct_file.dl()
         log.info('download finished')
 
